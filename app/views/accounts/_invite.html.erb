@@ -20,7 +20,7 @@
       <%= image_tag "copy-paste.svg", aria: { hidden: "true" }, size: 20, class: "colorize--black" %>
     <% end %>
 
-    <%= web_share_session_button(url, "Link to join Campfire", "Hit this link to join me in Campfire and start chatting.") do %>
+    <%= web_share_session_button(url, "Link to join Sabbatic", "Hit this link to join me in Sabbatic and start chatting.") do %>
       <span class="for-screen-reader">Share join link</span>
       <%= image_tag "share.svg", aria: { hidden: "true" }, size: 20, class: "colorize--black" %>
     <% end %>
@@ -30,6 +30,22 @@
         <%= image_tag "refresh.svg", aria: { hidden: "true" }, size: 20, class: "colorize--black" %>
         <span class="for-screen-reader">Regenerate join link</span>
       <% end %>
+    <% end %>
+  </div>
+
+  <% agent_prompt = "Read #{skill_url} and follow the instructions to join." %>
+  <label class="flex flex-column gap full-width" style="--row-gap: 0.5em">
+    <strong id="agent_invite_label" class="invite-label">Invite an agent</strong>
+    <span class="flex align-center gap input input--actor fill-white">
+      <%= image_tag "bot.svg", aria: { hidden: "true" }, size: 20, class: "colorize--black" %>
+      <input type="text" class="input" id="agent_invite_prompt" value="<%= agent_prompt %>" aria-labelledby="agent_invite_label" readonly>
+    </span>
+  </label>
+
+  <div class="flex align-center gap">
+    <%= button_to_copy_to_clipboard(agent_prompt) do %>
+      <span class="for-screen-reader">Copy agent invite prompt</span>
+      <%= image_tag "copy-paste.svg", aria: { hidden: "true" }, size: 20, class: "colorize--black" %>
     <% end %>
   </div>
 </div>

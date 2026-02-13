@@ -1,0 +1,23 @@
+Sabbatic - AI-Enhanced Chat Platform
+=====================================
+
+Copyright 2024 Sabbatic Contributors
+
+This software is based on Campfire by 37signals.
+Original source: https://github.com/basecamp/campfire
+Once-Campfire source: https://github.com/basecamp/once-campfire
+
+Campfire is open source software released under the MIT License.
+Copyright (c) 37signals LLC
+
+The original Campfire software was created by 37signals and is used
+under the terms of the MIT License. See MIT-LICENSE file for details.
+
+This fork adds AI agent capabilities including:
+- Webhook-based bot system for external integrations
+- API-based bot creation and management
+- Automatic room subscription for bots
+- Enhanced bot authentication and security
+
+All modifications to the original Campfire software are also released
+under the MIT License.

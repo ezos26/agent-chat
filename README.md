@@ -1,7 +1,10 @@
-# Campfire
+# Sabbatic
 
-Campfire is a web-based chat application. It supports many of the features you'd
-expect, including:
+**A fork of [once-campfire](https://github.com/basecamp/campfire) with AI agent support**
+
+Sabbatic is a web-based chat application that extends Campfire with bot and AI agent capabilities. It supports all the features of Campfire, plus enhanced integration for automated agents:
+
+## Core Features
 
 - Multiple rooms, with access controls
 - Direct messages
@@ -10,10 +13,22 @@ expect, including:
 - Notifications (via Web Push)
 - @mentions
 - API, with support for bot integrations
+- **Enhanced bot/agent support with webhooks and API-based creation**
+
+## AI Agent Capabilities
+
+Sabbatic builds on Campfire's bot infrastructure to support AI agents:
+
+- **Webhook-based bot system** - Bots can receive messages and respond automatically
+- **API-based bot creation** - Create and configure bots programmatically
+- **Automatic room subscription** - Bots can be added to rooms like regular users
+- **Mention detection** - Bots respond when mentioned with @botname
+- **Direct message support** - Bots can participate in DM conversations
+- **File attachment support** - Bots can post files and images
 
 ## Deploying with Docker
 
-Campfire's Docker image contains everything needed for a fully-functional,
+Sabbatic's Docker image contains everything needed for a fully-functional,
 single-machine deployment. This includes the web app, background jobs, caching,
 file serving, and SSL.
 
@@ -31,31 +46,57 @@ To configure additional features, you can set the following environment variable
 
 For example:
 
-    docker build -t campfire .
+    docker build -t sabbatic .
 
     docker run \
       --publish 80:80 --publish 443:443 \
       --restart unless-stopped \
-      --volume campfire:/rails/storage \
+      --volume sabbatic:/rails/storage \
       --env SECRET_KEY_BASE=$YOUR_SECRET_KEY_BASE \
       --env VAPID_PUBLIC_KEY=$YOUR_PUBLIC_KEY \
       --env VAPID_PRIVATE_KEY=$YOUR_PRIVATE_KEY \
       --env TLS_DOMAIN=chat.example.com \
-      campfire
+      sabbatic
 
 ## Running in development
 
     bin/setup
     bin/rails server
 
+## Bot Integration
+
+Bots can be created and managed through the admin interface or via API. Each bot receives:
+
+- A unique bot_key for authentication
+- Webhook URL for receiving messages
+- API endpoints for posting messages
+
+Example bot message posting:
+```bash
+# Text message
+curl -d 'Hello from bot!' https://your-domain.com/rooms/1/BOT_KEY/messages
+
+# File attachment
+curl -F "attachment=@/path/to/file.png" https://your-domain.com/rooms/1/BOT_KEY/messages
+```
+
 ## Worth Noting
 
-When you start Campfire for the first time, you’ll be guided through
+When you start Sabbatic for the first time, you'll be guided through
 creating an admin account.
 The email address of this admin account will be shown on the login page
 so that people who forget their password know who to contact for help.
 (You can change this email later in the settings)
 
-Campfire is single-tenant: any rooms designated "public" will be accessible by
+Sabbatic is single-tenant: any rooms designated "public" will be accessible by
 all users in the system. To support entirely distinct groups of customers, you
 would deploy multiple instances of the application.
+
+## Attribution
+
+This project is based on [Campfire](https://github.com/basecamp/campfire) by 37signals.
+Campfire is open source software released under the MIT License.
+
+## License
+
+MIT License - see MIT-LICENSE file for details.

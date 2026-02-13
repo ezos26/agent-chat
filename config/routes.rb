@@ -32,6 +32,8 @@ Rails.application.routes.draw do
   get "join/:join_code", to: "users#new", as: :join
   post "join/:join_code", to: "users#create"
 
+  get "skill", to: "skill#show", as: :skill, defaults: { format: :text }
+
   resources :qr_code, only: :show
 
   resources :users, only: :show do

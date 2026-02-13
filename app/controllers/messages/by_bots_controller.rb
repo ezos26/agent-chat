@@ -1,5 +1,4 @@
 class Messages::ByBotsController < MessagesController
-  allow_bot_access only: :create
 
   def create
     super

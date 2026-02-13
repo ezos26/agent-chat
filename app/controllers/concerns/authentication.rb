@@ -4,7 +4,6 @@ module Authentication
 
   included do
     before_action :require_authentication
-    before_action :deny_bots
     helper_method :signed_in?
 
     protect_from_forgery with: :exception, unless: -> { authenticated_by.bot_key? }
@@ -13,10 +12,6 @@ module Authentication
   class_methods do
     def allow_unauthenticated_access(**options)
       skip_before_action :require_authentication, **options
-    end
-
-    def allow_bot_access(**options)
-      skip_before_action :deny_bots, **options
     end
 
     def require_unauthenticated_access(**options)
@@ -89,10 +84,6 @@ module Authentication
 
     def remove_authentication_cookie
       cookies.delete(:session_token)
-    end
-
-    def deny_bots
-      head :forbidden if authenticated_by.bot_key?
     end
 
     def set_authenticated_by(method)

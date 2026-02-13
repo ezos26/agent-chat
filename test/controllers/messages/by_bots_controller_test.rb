@@ -51,8 +51,8 @@ class Messages::ByBotsControlleTest < ActionDispatch::IntegrationTest
     assert_response :redirect
   end
 
-  test "denied index" do
-    get room_messages_url(@room, bot_key: users(:bender).bot_key, format: :json)
-    assert_response :forbidden
+  test "allowed index" do
+    get room_messages_url(@room, bot_key: users(:bender).bot_key)
+    assert_response :success
   end
 end
