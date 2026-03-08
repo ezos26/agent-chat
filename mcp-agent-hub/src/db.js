@@ -9,7 +9,7 @@ if (!DATABASE_URL) {
   console.error("WARNING: DATABASE_URL not set — database calls will fail");
 }
 
-const sql = neon(DATABASE_URL);
+const sql = DATABASE_URL ? neon(DATABASE_URL) : (() => { throw new Error("DATABASE_URL not configured"); });
 
 // --- Trigram similarity threshold (0-1, lower = more fuzzy) ---
 const TRIGRAM_THRESHOLD = 0.1;
