@@ -17,4 +17,4 @@ EXPOSE 3100
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
   CMD node healthcheck.js || exit 1
 
-CMD ["sh", "-c", "node src/migrate.js && node src/server.js"]
+CMD ["sh", "-c", "node src/migrate.js; node src/server.js"]
