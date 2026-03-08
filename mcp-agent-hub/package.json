@@ -1,18 +1,26 @@
 {
-  "name": "@sabbatic/agent-hub-mcp",
-  "version": "0.1.0",
-  "description": "MCP server for shared agent knowledge across repos",
+  "name": "@sabbatic/agent-hub",
+  "version": "1.0.0",
+  "description": "Central agent knowledge hub — MCP + REST API backed by Neon pgvector",
   "type": "module",
-  "main": "index.js",
+  "main": "src/server.js",
   "bin": {
-    "agent-hub-mcp": "./index.js"
+    "agent-hub": "./src/server.js",
+    "agent-hub-local": "./src/local.js"
   },
   "scripts": {
-    "start": "node index.js",
-    "migrate": "node migrate.js"
+    "start": "node src/server.js",
+    "local": "node src/local.js",
+    "migrate": "node src/migrate.js",
+    "dev": "node --watch src/server.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@neondatabase/serverless": "^1.0.2"
+    "@neondatabase/serverless": "^1.0.2",
+    "express": "^5.1.0",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

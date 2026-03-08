@@ -1,3 +1,8 @@
+#!/usr/bin/env node
+/**
+ * Database migration — creates all tables and extensions in Neon.
+ * Safe to run multiple times (all CREATE IF NOT EXISTS).
+ */
 import { neon } from "@neondatabase/serverless";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -9,10 +14,8 @@ if (!DATABASE_URL) {
 const sql = neon(DATABASE_URL);
 
 async function migrate() {
-  console.log("Enabling pgvector extension...");
+  console.log("Enabling extensions...");
   await sql`CREATE EXTENSION IF NOT EXISTS vector`;
-
-  console.log("Enabling pg_trgm extension (trigram similarity)...");
   await sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`;
 
   console.log("Creating agents table...");
@@ -79,17 +82,14 @@ async function migrate() {
   await sql`CREATE INDEX IF NOT EXISTS idx_learnings_topic ON learnings(topic)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_commits_repo ON commits(repo)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_questions_resolved ON questions(resolved)`;
-
-  // Trigram index for fuzzy text search on learnings content
   await sql`CREATE INDEX IF NOT EXISTS idx_learnings_content_trgm ON learnings USING GIN (content gin_trgm_ops)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_agents_last_seen ON agents(last_seen_at)`;
 
-  // Vector similarity indexes (IVFFlat for performance)
   try {
     await sql`CREATE INDEX IF NOT EXISTS idx_learnings_embedding ON learnings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_commits_embedding ON commits USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10)`;
-  } catch (e) {
-    // IVFFlat needs enough rows to build — skip if too few
-    console.log("Skipping vector indexes (will auto-create when enough data exists)");
+  } catch {
+    console.log("Skipping vector indexes (need more data first)");
   }
 
   console.log("Migration complete!");
