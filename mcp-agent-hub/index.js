@@ -108,9 +108,121 @@ server.tool(
 
 // --- Search Learnings ---
 
+// Minimum trigram similarity threshold (0-1, higher = stricter match)
+const TRIGRAM_SIMILARITY_THRESHOLD = 0.1;
+
+/**
+ * Search learnings using exact ILIKE matching.
+ */
+async function searchIlike({ query, topic, repo, maxResults }) {
+  if (repo && topic) {
+    return sql`
+      SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
+             a.name as agent_name
+      FROM learnings l
+      LEFT JOIN agents a ON l.agent_id = a.id
+      WHERE (l.repo = ${repo} OR l.repo IS NULL)
+        AND l.topic = ${topic}
+        AND l.content ILIKE ${"%" + query + "%"}
+      ORDER BY l.confidence DESC, l.created_at DESC
+      LIMIT ${maxResults}
+    `;
+  } else if (repo) {
+    return sql`
+      SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
+             a.name as agent_name
+      FROM learnings l
+      LEFT JOIN agents a ON l.agent_id = a.id
+      WHERE (l.repo = ${repo} OR l.repo IS NULL)
+        AND l.content ILIKE ${"%" + query + "%"}
+      ORDER BY l.confidence DESC, l.created_at DESC
+      LIMIT ${maxResults}
+    `;
+  } else if (topic) {
+    return sql`
+      SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
+             a.name as agent_name
+      FROM learnings l
+      LEFT JOIN agents a ON l.agent_id = a.id
+      WHERE l.topic = ${topic}
+        AND l.content ILIKE ${"%" + query + "%"}
+      ORDER BY l.confidence DESC, l.created_at DESC
+      LIMIT ${maxResults}
+    `;
+  } else {
+    return sql`
+      SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
+             a.name as agent_name
+      FROM learnings l
+      LEFT JOIN agents a ON l.agent_id = a.id
+      WHERE l.content ILIKE ${"%" + query + "%"}
+      ORDER BY l.confidence DESC, l.created_at DESC
+      LIMIT ${maxResults}
+    `;
+  }
+}
+
+/**
+ * Search learnings using pg_trgm trigram similarity (fuzzy matching).
+ * Results are ranked by similarity score, then confidence.
+ */
+async function searchTrigram({ query, topic, repo, maxResults }) {
+  const threshold = TRIGRAM_SIMILARITY_THRESHOLD;
+
+  if (repo && topic) {
+    return sql`
+      SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
+             a.name as agent_name,
+             similarity(l.content, ${query}) AS sim_score
+      FROM learnings l
+      LEFT JOIN agents a ON l.agent_id = a.id
+      WHERE (l.repo = ${repo} OR l.repo IS NULL)
+        AND l.topic = ${topic}
+        AND similarity(l.content, ${query}) > ${threshold}
+      ORDER BY sim_score DESC, l.confidence DESC, l.created_at DESC
+      LIMIT ${maxResults}
+    `;
+  } else if (repo) {
+    return sql`
+      SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
+             a.name as agent_name,
+             similarity(l.content, ${query}) AS sim_score
+      FROM learnings l
+      LEFT JOIN agents a ON l.agent_id = a.id
+      WHERE (l.repo = ${repo} OR l.repo IS NULL)
+        AND similarity(l.content, ${query}) > ${threshold}
+      ORDER BY sim_score DESC, l.confidence DESC, l.created_at DESC
+      LIMIT ${maxResults}
+    `;
+  } else if (topic) {
+    return sql`
+      SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
+             a.name as agent_name,
+             similarity(l.content, ${query}) AS sim_score
+      FROM learnings l
+      LEFT JOIN agents a ON l.agent_id = a.id
+      WHERE l.topic = ${topic}
+        AND similarity(l.content, ${query}) > ${threshold}
+      ORDER BY sim_score DESC, l.confidence DESC, l.created_at DESC
+      LIMIT ${maxResults}
+    `;
+  } else {
+    return sql`
+      SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
+             a.name as agent_name,
+             similarity(l.content, ${query}) AS sim_score
+      FROM learnings l
+      LEFT JOIN agents a ON l.agent_id = a.id
+      WHERE similarity(l.content, ${query}) > ${threshold}
+      ORDER BY sim_score DESC, l.confidence DESC, l.created_at DESC
+      LIMIT ${maxResults}
+    `;
+  }
+}
+
 server.tool(
   "search_learnings",
-  "Search the shared knowledge base for relevant learnings from all agents across all repos.",
+  "Search the shared knowledge base for relevant learnings from all agents across all repos. Uses exact text matching first, then falls back to fuzzy trigram similarity search.",
   {
     query: z.string().describe("What you want to know about"),
     topic: z
@@ -128,52 +240,16 @@ server.tool(
   },
   async ({ query, topic, repo, limit }) => {
     const maxResults = limit || 10;
-    let rows;
+    const searchParams = { query, topic, repo, maxResults };
 
-    if (repo && topic) {
-      rows = await sql`
-        SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
-               a.name as agent_name
-        FROM learnings l
-        LEFT JOIN agents a ON l.agent_id = a.id
-        WHERE (l.repo = ${repo} OR l.repo IS NULL)
-          AND l.topic = ${topic}
-          AND l.content ILIKE ${"%" + query + "%"}
-        ORDER BY l.confidence DESC, l.created_at DESC
-        LIMIT ${maxResults}
-      `;
-    } else if (repo) {
-      rows = await sql`
-        SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
-               a.name as agent_name
-        FROM learnings l
-        LEFT JOIN agents a ON l.agent_id = a.id
-        WHERE (l.repo = ${repo} OR l.repo IS NULL)
-          AND l.content ILIKE ${"%" + query + "%"}
-        ORDER BY l.confidence DESC, l.created_at DESC
-        LIMIT ${maxResults}
-      `;
-    } else if (topic) {
-      rows = await sql`
-        SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
-               a.name as agent_name
-        FROM learnings l
-        LEFT JOIN agents a ON l.agent_id = a.id
-        WHERE l.topic = ${topic}
-          AND l.content ILIKE ${"%" + query + "%"}
-        ORDER BY l.confidence DESC, l.created_at DESC
-        LIMIT ${maxResults}
-      `;
-    } else {
-      rows = await sql`
-        SELECT l.id, l.content, l.topic, l.repo, l.confidence, l.created_at,
-               a.name as agent_name
-        FROM learnings l
-        LEFT JOIN agents a ON l.agent_id = a.id
-        WHERE l.content ILIKE ${"%" + query + "%"}
-        ORDER BY l.confidence DESC, l.created_at DESC
-        LIMIT ${maxResults}
-      `;
+    // Primary: exact ILIKE matching (fast for substring matches)
+    let rows = await searchIlike(searchParams);
+    let searchMethod = "exact";
+
+    // Fallback: trigram similarity (fuzzy matching for typos, rephrasing, partial matches)
+    if (rows.length === 0) {
+      rows = await searchTrigram(searchParams);
+      searchMethod = "fuzzy";
     }
 
     if (rows.length === 0) {
@@ -184,16 +260,18 @@ server.tool(
       };
     }
 
-    const results = rows.map(
-      (r) =>
-        `[#${r.id}] (${r.topic}) ${r.repo || "global"} — ${r.content}\n  by: ${r.agent_name || "unknown"} | confidence: ${r.confidence} | ${r.created_at}`
-    );
+    const results = rows.map((r) => {
+      const simInfo = r.sim_score != null ? ` | similarity: ${parseFloat(r.sim_score).toFixed(2)}` : "";
+      return `[#${r.id}] (${r.topic}) ${r.repo || "global"} — ${r.content}\n  by: ${r.agent_name || "unknown"} | confidence: ${r.confidence}${simInfo} | ${r.created_at}`;
+    });
+
+    const methodNote = searchMethod === "fuzzy" ? " (via fuzzy matching)" : "";
 
     return {
       content: [
         {
           type: "text",
-          text: `Found ${rows.length} learnings:\n\n${results.join("\n\n")}`,
+          text: `Found ${rows.length} learnings${methodNote}:\n\n${results.join("\n\n")}`,
         },
       ],
     };
