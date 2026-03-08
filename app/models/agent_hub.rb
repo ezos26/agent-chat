@@ -1,60 +1,55 @@
-require "pg"
+require "net/http"
+require "json"
+require "uri"
 
 class AgentHub
+  TIMEOUT = 5.seconds
+
   class << self
     def post_learning(content:, topic:, repo: nil, agent_name: nil, confidence: 1.0)
-      agent_id = resolve_agent_id(agent_name)
-
-      execute(<<~SQL, [agent_id, repo, topic, content, confidence])
-        INSERT INTO learnings (agent_id, repo, topic, content, confidence)
-        VALUES ($1, $2, $3, $4, $5)
-      SQL
+      post("/api/v1/learnings", {
+        content: content, topic: topic, repo: repo,
+        agent_name: agent_name, confidence: confidence
+      })
     end
 
     def log_commit(repo:, sha:, summary:, files_changed: [], agent_name: nil)
-      agent_id = resolve_agent_id(agent_name)
-
-      execute(<<~SQL, [agent_id, repo, sha, summary, files_changed])
-        INSERT INTO commits (agent_id, repo, sha, summary, files_changed)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (repo, sha) DO UPDATE SET summary = $4
-      SQL
+      post("/api/v1/commits", {
+        repo: repo, sha: sha, summary: summary,
+        files_changed: files_changed, agent_name: agent_name
+      })
     end
 
     def register_agent(name:, repo_url: nil, capabilities: [])
-      execute(<<~SQL, [name, repo_url, capabilities])
-        INSERT INTO agents (name, repo_url, capabilities, last_seen_at)
-        VALUES ($1, $2, $3, NOW())
-        ON CONFLICT (name, repo_url) DO UPDATE SET
-          capabilities = COALESCE($3, agents.capabilities),
-          last_seen_at = NOW()
-        RETURNING id
-      SQL
-    end
-
-    def connection
-      @connection ||= PG.connect(ENV["AGENT_HUB_DATABASE_URL"] || ENV["DATABASE_URL"])
-    end
-
-    def reset_connection!
-      @connection&.close
-      @connection = nil
+      post("/api/v1/agents", {
+        name: name, repo_url: repo_url, capabilities: capabilities
+      })
     end
 
     private
 
-    def execute(sql, params)
-      connection.exec_params(sql, params)
-    rescue PG::ConnectionBad
-      reset_connection!
-      connection.exec_params(sql, params)
+    def post(path, body)
+      uri = URI.join(base_url, path)
+      request = Net::HTTP::Post.new(uri, "Content-Type" => "application/json")
+      request["Authorization"] = "Bearer #{api_key}" if api_key.present?
+      request.body = body.to_json
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = (uri.scheme == "https")
+      http.open_timeout = TIMEOUT
+      http.read_timeout = TIMEOUT
+      http.request(request)
+    rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNREFUSED => e
+      Rails.logger.warn "AgentHub request failed: #{e.message}"
+      nil
     end
 
-    def resolve_agent_id(name)
-      return nil unless name
+    def base_url
+      ENV["AGENT_HUB_URL"] || "http://localhost:3100"
+    end
 
-      result = execute("SELECT id FROM agents WHERE name = $1 LIMIT 1", [name])
-      result.first&.dig("id")
+    def api_key
+      ENV["AGENT_HUB_API_KEY"]
     end
   end
 end
