@@ -57,7 +57,10 @@ class Webhook < ApplicationRecord
     end
 
     def receive_text_reply_to(room, text:)
-      room.messages.create!(body: text, creator: user).broadcast_create
+      room.messages.create!(body: text, creator: user).tap do |message|
+        message.broadcast_create
+        AgentHub::SyncMessageJob.perform_later(message) if sync_to_agent_hub?
+      end
     end
 
     def extract_attachment_from(response)
@@ -69,6 +72,10 @@ class Webhook < ApplicationRecord
 
     def receive_attachment_reply_to(room, attachment:)
       room.messages.create_with_attachment!(attachment: attachment, creator: user).broadcast_create
+    end
+
+    def sync_to_agent_hub?
+      ENV["AGENT_HUB_DATABASE_URL"].present? || ENV["DATABASE_URL"]&.include?("neon")
     end
 
     def without_recipient_mentions(body)
